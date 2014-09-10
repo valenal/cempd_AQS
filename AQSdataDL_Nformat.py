@@ -7,6 +7,13 @@ import numpy as np
 import datetime as dt
 from IPython import embed
 
+def getAdjStatesDict():
+    f = open('./cempd_AQS/adjacent_states.txt')
+    outDict = dict([ (i.rstrip('\n').split(',')[0],i.rstrip('\n').split(',')[1:])  for i in f.readlines()])
+    f.close()
+                
+    return outDict
+
 def unzip(inPath,tave,spc,code,yr,outPath):
     zfile = zipfile.ZipFile(inPath)
     for name in [i for i in zfile.namelist() if "csv" in i]:
