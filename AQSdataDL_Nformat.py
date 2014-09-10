@@ -1,4 +1,4 @@
-import os,time, pdb
+import os,time,pdb
 import urllib
 import urllib2
 import zipfile
@@ -6,40 +6,6 @@ import pandas as pd
 import numpy as np
 import datetime as dt
 from IPython import embed
-
-#######################################################################
-# Conversion factors are ppb -> ug/m3
-# Conversion factors are calculated by the equation
-# Density of Air at 25C (1.18535 Standard) * (mw conc / mw dry Air (28.9652))
-# http://www.engineeringtoolbox.com/air-density-specific-weight-d_600.html
-#######################################################################
-
-AQSpollsDict ={'42101':dict(name="CO", convert=1.14626, nCarbon=0.0),
-        '42602':dict(name="NO2", convert=1.88269, nCarbon=0.0),
-        '42603':dict(name="NOX", convert=1.88288, nCarbon=0.0),
-        '42600':dict(name="NOy", convert=1.88288, nCarbon=0.0),
-        '42401':dict(name="SO2", convert=2.860, nCarbon=0.0),
-        '88101':dict(name="PM25", convert=-999, nCarbon=0.0),
-        '81102':dict(name="PM10", convert=-999, nCarbon=0.0),
-        '45201':dict(name="BENZENE", convert=3.1965, nCarbon=6.0),
-        '88305':dict(name="OC25", convert=-999, nCarbon=0.0),
-        '88307':dict(name="EC25", convert=-999, nCarbon=0.0),
-        '88403':dict(name="SO4", convert=-999, nCarbon=0.0),
-        '88501':dict(name="PM25", convert=-999, nCarbon=0.0),
-        '88502':dict(name="PM25", convert=-999, nCarbon=0.0),
-        '44201':dict(name="O3", convert=1.9643158, nCarbon=0.0),
-        '43502':dict(name="FORMALDEHYDE", convert=1.22892, nCarbon=1.0),
-        '43218':dict(name="1,3-BUTADIENE", convert=2.213604, nCarbon=4.0),
-        '43505':dict(name="ACROLEIN", convert=2.294157, nCarbon=3.0),
-        '43509':dict(name="ACROLEIN", convert=2.294157, nCarbon=3.0),
-        '43503':dict(name="ACETALDEHYDE", convert=1.80277, convert0=1.96752, nCarbon=2.0)}
-               
-units = {"Parts per million":"ppm",
-        "Parts per billion Carbon":"ppbC",
-        "Micrograms/cubic meter (LC)":"ug/m3",
-        "Micrograms/cubic meter (25 C)":"ug/m3",
-        "Nanograms/cubic meter (25 C)":'ng/m3'}
-
 
 def unzip(inPath,tave,spc,code,yr,outPath):
     zfile = zipfile.ZipFile(inPath)
@@ -74,7 +40,7 @@ def DL_unzip(spc,yr,tave):
     'LEAD':['LEAD']}
 
     if spc.upper() == 'ALL':
-	spcs = spcCode.keys()
+        spcs = spcCode.keys()
     else:
         spcs= [spc.upper()]
 
@@ -104,6 +70,38 @@ def DL_unzip(spc,yr,tave):
 
 
 class AQSdat:
+#######################################################################
+# Conversion factors are ppb -> ug/m3
+# Conversion factors are calculated by the equation
+# Density of Air at 25C (1.18535 Standard) * (mw conc / mw dry Air (28.9652))
+# http://www.engineeringtoolbox.com/air-density-specific-weight-d_600.html
+#######################################################################
+    AQSpollsDict ={'42101':dict(name="CO", convert=1.14626, nCarbon=0.0),
+    '42602':dict(name="NO2", convert=1.88269, nCarbon=0.0),
+    '42603':dict(name="NOX", convert=1.88288, nCarbon=0.0),
+    '42600':dict(name="NOy", convert=1.88288, nCarbon=0.0),
+    '42401':dict(name="SO2", convert=2.860, nCarbon=0.0),
+    '88101':dict(name="PM25", convert=-999, nCarbon=0.0),
+    '81102':dict(name="PM10", convert=-999, nCarbon=0.0),
+    '45201':dict(name="BENZENE", convert=3.1965, nCarbon=6.0),
+    '88305':dict(name="OC25", convert=-999, nCarbon=0.0),
+    '88307':dict(name="EC25", convert=-999, nCarbon=0.0),
+    '88403':dict(name="SO4", convert=-999, nCarbon=0.0),
+    '88501':dict(name="PM25", convert=-999, nCarbon=0.0),
+    '88502':dict(name="PM25", convert=-999, nCarbon=0.0),
+    '44201':dict(name="O3", convert=1.9643158, nCarbon=0.0),
+    '43502':dict(name="FORMALDEHYDE", convert=1.22892, nCarbon=1.0),
+    '43218':dict(name="1,3-BUTADIENE", convert=2.213604, nCarbon=4.0),
+    '43505':dict(name="ACROLEIN", convert=2.294157, nCarbon=3.0),
+    '43509':dict(name="ACROLEIN", convert=2.294157, nCarbon=3.0),
+    '43503':dict(name="ACETALDEHYDE", convert=1.80277, convert0=1.96752, nCarbon=2.0)}
+           
+    units = {"Parts per million":"ppm",
+    "Parts per billion Carbon":"ppbC",
+    "Micrograms/cubic meter (LC)":"ug/m3",
+    "Micrograms/cubic meter (25 C)":"ug/m3",
+    "Nanograms/cubic meter (25 C)":'ng/m3'}
+
     def __init__(self,inPath,spc,yr,tave):
         self.pollutant = spc 
         self.year = yr 
@@ -289,26 +287,25 @@ def writeSTOK(inDF,spc,tmean,outF):
 if __name__ == "__main__":
 
 ######################## EXAMPLE RUN ##############################
+    if (FALSE):
+        pollGroups = { 'VOCS':{'43505':'ACROLEIN'},
+        'HAPS':{'43218':'13BUTADIENE','45201':'BENZENE','43502':'FORMALDEHYDE','43503':'ACETALDEHYDE'},
+        'SPEC':{'88403':'SO4'}, 'PM25_FRM':{'88101':'PM25_FRM'},'CO':{'42101':'CO'} ,
+        'PM25_nonFRM':{'88502':'PM25_nonFRM'},'NOX':{'42603':'NOX'}}
 
-#pollGroups = { 'VOCS':{'43505':'ACROLEIN'},
-#'HAPS':{'43218':'13BUTADIENE','45201':'BENZENE','43502':'FORMALDEHYDE','43503':'ACETALDEHYDE'},
-#'SPEC':{'88403':'SO4'}, 'PM25_FRM':{'88101':'PM25_FRM'},'CO':{'42101':'CO'} ,
-#'PM25_nonFRM':{'88502':'PM25_nonFRM'},'NOX':{'42603':'NOX'}}
+        states = [37,51,21,47,13,45]
+        years = [2011,2012,2013,2014]
+        tmean = 'hourly'
 
-states = [37,51,21,47,13,45]
-years = [2011,2012,2013,2014]
-tmean = 'hourly'
+        for year in years:
+            for polls in pollGroups.keys():
+                outFile = DL_unzip(polls,year,tmean)
+                nex = AQSdat(outFile,polls,year,tmean)
+                #embed()
 
-for year in years:
-	for polls in pollGroups.keys():
-		outFile = DL_unzip(polls,year,tmean)
-		nex = AQSdat(outFile,polls,year,tmean)
-		#embed()
-
-		for pollCode in pollGroups[polls].keys():
-			pollName = pollGroups[polls][pollCode]
-			nex.keepStates(states,'Code')
-			spc = nex.getPoll(pollCode,toUgm3=True)
-			writeSTOK(spc,pollName,tmean,'./%s_%s.csv' % (pollName,year))
-                
+                for pollCode in pollGroups[polls].keys():
+                    pollName = pollGroups[polls][pollCode]
+                    nex.keepStates(states,'Code')
+                    spc = nex.getPoll(pollCode,toUgm3=True)
+                    writeSTOK(spc,pollName,tmean,'./%s_%s.csv' % (pollName,year))
 ####################################################################################
