@@ -287,31 +287,28 @@ def writeSTOK(inDF,spc,tmean,outF):
     inDF.loc[:,['site_id','Longitude','Latitude','year','month','day','hour',spc]].to_csv(outF,index=False,header=False)
 
 if __name__ == "__main__":
-    #states = [37,51,21,47,13,45]
-    states = [37,51,21,47,13,45,54,01,12,24]
 
-#    pollGroups = { 'VOCS':{'43505':'ACROLEIN'},
-#    'HAPS':{'43218':'13BUTADIENE','45201':'BENZENE','43502':'FORMALDEHYDE','43503':'ACETALDEHYDE'},
-#    'SPEC':{'88403':'SO4'}}
-#    pollGroups = {'HAPS':{'43502':'FORMALDEHYDE','43503':'ACETALDEHYDE'}}
-#    pollGroups = { 'CO':{'42101':'CO'}, 'PM25_FRM':{'88101':'PM25_FRM'} , 'PM25_nonFRM':{'88502':'PM25_nonFRM'} }
+######################## EXAMPLE RUN ##############################
 
-    #pollGroups = { 'CO':{'42101':'CO'} , 'PM25_nonFRM':{'88502':'PM25_nonFRM'} }
-    pollGroups = {'NOX':{'42603':'NOX'}  }  
+#pollGroups = { 'VOCS':{'43505':'ACROLEIN'},
+#'HAPS':{'43218':'13BUTADIENE','45201':'BENZENE','43502':'FORMALDEHYDE','43503':'ACETALDEHYDE'},
+#'SPEC':{'88403':'SO4'}, 'PM25_FRM':{'88101':'PM25_FRM'},'CO':{'42101':'CO'} ,
+#'PM25_nonFRM':{'88502':'PM25_nonFRM'},'NOX':{'42603':'NOX'}}
 
+states = [37,51,21,47,13,45]
+years = [2011,2012,2013,2014]
+tmean = 'hourly'
 
-    years = [2011,2012,2013,2014]
-    tmean = 'hourly'
-    
-    for year in years:
-        for polls in pollGroups.keys():
-            outFile = DL_unzip(polls,year,tmean)
-            nex = AQSdat(outFile,polls,year,tmean)
-            #embed()
-                    
-            for pollCode in pollGroups[polls].keys():   
-                pollName = pollGroups[polls][pollCode]
-                nex.keepStates(states,'Code')
-                spc = nex.getPoll(pollCode,toUgm3=True)
-                writeSTOK(spc,pollName,tmean,'./%s_%s.csv' % (pollName,year))
+for year in years:
+	for polls in pollGroups.keys():
+		outFile = DL_unzip(polls,year,tmean)
+		nex = AQSdat(outFile,polls,year,tmean)
+		#embed()
 
+		for pollCode in pollGroups[polls].keys():
+			pollName = pollGroups[polls][pollCode]
+			nex.keepStates(states,'Code')
+			spc = nex.getPoll(pollCode,toUgm3=True)
+			writeSTOK(spc,pollName,tmean,'./%s_%s.csv' % (pollName,year))
+                
+####################################################################################
