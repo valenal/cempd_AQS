@@ -7,12 +7,66 @@ import numpy as np
 import datetime as dt
 from IPython import embed
 
-def getAdjStatesDict():
-    f = open('./cempd_AQS/adjacent_states.txt')
-    outDict = dict([ (i.rstrip('\n').split(',')[0],i.rstrip('\n').split(',')[1:])  for i in f.readlines()])
-    f.close()
-                
+#######################################################################
+# Conversion factors are ppb -> ug/m3
+# Conversion factors are calculated by the equation
+# Density of Air at 25C (1.18535 Standard) * (mw conc / mw dry Air (28.9652))
+# http://www.engineeringtoolbox.com/air-density-specific-weight-d_600.html
+#######################################################################
+AQSpollsDict ={'42101':dict(name="CO", convert=1.14626, nCarbon=0.0),
+'42602':dict(name="NO2", convert=1.88269, nCarbon=0.0),
+'42603':dict(name="NOX", convert=1.88288, nCarbon=0.0),
+'42600':dict(name="NOy", convert=1.88288, nCarbon=0.0),
+'42401':dict(name="SO2", convert=2.860, nCarbon=0.0),
+'88101':dict(name="PM25", convert=-999, nCarbon=0.0),
+'81102':dict(name="PM10", convert=-999, nCarbon=0.0),
+'45201':dict(name="BENZENE", convert=3.1965, nCarbon=6.0),
+'88305':dict(name="OC25", convert=-999, nCarbon=0.0),
+'88307':dict(name="EC25", convert=-999, nCarbon=0.0),
+'88403':dict(name="SO4", convert=-999, nCarbon=0.0),
+'88501':dict(name="PM25", convert=-999, nCarbon=0.0),
+'88502':dict(name="PM25", convert=-999, nCarbon=0.0),
+'44201':dict(name="O3", convert=1.9643158, nCarbon=0.0),
+'43502':dict(name="FORMALDEHYDE", convert=1.22892, nCarbon=1.0),
+'43218':dict(name="1,3-BUTADIENE", convert=2.213604, nCarbon=4.0),
+'43505':dict(name="ACROLEIN", convert=2.294157, nCarbon=3.0),
+'43509':dict(name="ACROLEIN", convert=2.294157, nCarbon=3.0),
+'43503':dict(name="ACETALDEHYDE", convert=1.80277, convert0=1.96752, nCarbon=2.0)}
+       
+units = {"Parts per million":"ppm",
+"Parts per billion Carbon":"ppbC",
+"Micrograms/cubic meter (LC)":"ug/m3",
+"Micrograms/cubic meter (25 C)":"ug/m3",
+"Nanograms/cubic meter (25 C)":'ng/m3'}
+
+basePath = os.path.dirname(__file__)
+
+
+### FIX THIS
+def getAdjStatesDict(getCode=True):
+    f1 = open('%s/adjacent_states.txt' % basePath)
+    f2 = open('%s/statesCodeAbbName.txt' % basePath)
+    
+    #get State Code
+    if getCode:
+        iCode = 1
+    #get State Name
+    else:
+        iCode = 2 
+        
+    #create dict that map abbreviations to State code or name
+    abbDict = dict([ (i.rstrip('\n').split(',')[0],i.rstrip('\n').split(',')[iCode])  for i in f2.readlines()])    
+    #create dict with adjacent states
+    outDict = dict([ (i.rstrip('\n').split(',')[0],i.rstrip('\n').split(',')[1:])  for i in f1.readlines()])
+
+    f1.close()
+    f2.close()
+
+    for key,vals in outDict.items():
+        outDict[key] = [ abbDict[i] for i in vals]
+              
     return outDict
+
 
 def unzip(inPath,tave,spc,code,yr,outPath):
     zfile = zipfile.ZipFile(inPath)
@@ -34,7 +88,8 @@ def unzip(inPath,tave,spc,code,yr,outPath):
 
 def DL_unzip(spc,yr,tave):
 
-    spcCode = {'CO':['42101'], 
+    spcCode = {'CO':['42101'],
+    'NOX':['42603'], 
     'NO2':['42602'], 
     'O3':['44201'], 
     'PM25_FRM':['88101'],
@@ -56,13 +111,13 @@ def DL_unzip(spc,yr,tave):
 
             dlFile = 'http://aqsdr1.epa.gov/aqsweb/aqstmp/airdata/%s_%s_%s.zip' % (tave,each_spc,yr)
             zipFile = '%s/AQSFiles/%s_%s_%s.zip' % (os.getcwd(),tave,each_spc,yr)
-            if not os.path.exist(os.path.dirname(zipFile)):
+            if not os.path.exists(os.path.dirname(zipFile)):
                 os.makedirs(os.path.dirname(zipFile))
-                
+            
             if each_spcs == each_spc:
-                unzipFile = '%s/%s_%s_%s.csv' % (os.getcwd(),tave,each_spc,yr)
-            else: 
-                unzipFile = '%s/%s_%s_%s_%s.csv' % (os.getcwd(),tave,each_spcs,each_spc,yr)
+                unzipFile = '%s/AQSFiles/%s_%s_%s.csv' % (os.getcwd(),tave,each_spc,yr)
+            else:
+                unzipFile = '%s/AQSFiles/%s_%s_%s_%s.csv' % (os.getcwd(),tave,each_spcs,each_spc,yr)
             
             if not os.path.isfile(unzipFile):
                 print 'Downloading '+ each_spc +' at '+ dlFile
@@ -77,37 +132,6 @@ def DL_unzip(spc,yr,tave):
 
 
 class AQSdat:
-#######################################################################
-# Conversion factors are ppb -> ug/m3
-# Conversion factors are calculated by the equation
-# Density of Air at 25C (1.18535 Standard) * (mw conc / mw dry Air (28.9652))
-# http://www.engineeringtoolbox.com/air-density-specific-weight-d_600.html
-#######################################################################
-    AQSpollsDict ={'42101':dict(name="CO", convert=1.14626, nCarbon=0.0),
-    '42602':dict(name="NO2", convert=1.88269, nCarbon=0.0),
-    '42603':dict(name="NOX", convert=1.88288, nCarbon=0.0),
-    '42600':dict(name="NOy", convert=1.88288, nCarbon=0.0),
-    '42401':dict(name="SO2", convert=2.860, nCarbon=0.0),
-    '88101':dict(name="PM25", convert=-999, nCarbon=0.0),
-    '81102':dict(name="PM10", convert=-999, nCarbon=0.0),
-    '45201':dict(name="BENZENE", convert=3.1965, nCarbon=6.0),
-    '88305':dict(name="OC25", convert=-999, nCarbon=0.0),
-    '88307':dict(name="EC25", convert=-999, nCarbon=0.0),
-    '88403':dict(name="SO4", convert=-999, nCarbon=0.0),
-    '88501':dict(name="PM25", convert=-999, nCarbon=0.0),
-    '88502':dict(name="PM25", convert=-999, nCarbon=0.0),
-    '44201':dict(name="O3", convert=1.9643158, nCarbon=0.0),
-    '43502':dict(name="FORMALDEHYDE", convert=1.22892, nCarbon=1.0),
-    '43218':dict(name="1,3-BUTADIENE", convert=2.213604, nCarbon=4.0),
-    '43505':dict(name="ACROLEIN", convert=2.294157, nCarbon=3.0),
-    '43509':dict(name="ACROLEIN", convert=2.294157, nCarbon=3.0),
-    '43503':dict(name="ACETALDEHYDE", convert=1.80277, convert0=1.96752, nCarbon=2.0)}
-           
-    units = {"Parts per million":"ppm",
-    "Parts per billion Carbon":"ppbC",
-    "Micrograms/cubic meter (LC)":"ug/m3",
-    "Micrograms/cubic meter (25 C)":"ug/m3",
-    "Nanograms/cubic meter (25 C)":'ng/m3'}
 
     def __init__(self,inPath,spc,yr,tave):
         self.pollutant = spc 
@@ -308,7 +332,7 @@ if __name__ == "__main__":
             for polls in pollGroups.keys():
                 outFile = DL_unzip(polls,year,tmean)
                 nex = AQSdat(outFile,polls,year,tmean)
-                #embed()
+
 
                 for pollCode in pollGroups[polls].keys():
                     pollName = pollGroups[polls][pollCode]
