@@ -41,8 +41,6 @@ units = {"Parts per million":"ppm",
 
 basePath = os.path.dirname(__file__)
 
-
-### FIX THIS
 def getAdjStatesDict(getCode=True):
     f1 = open('%s/adjacent_states.txt' % basePath)
     f2 = open('%s/statesCodeAbbName.txt' % basePath)
@@ -57,7 +55,7 @@ def getAdjStatesDict(getCode=True):
     #create dict that map abbreviations to State code or name
     abbDict = dict([ (i.rstrip('\n').split(',')[0],i.rstrip('\n').split(',')[iCode])  for i in f2.readlines()])    
     #create dict with adjacent states
-    outDict = dict([ (i.rstrip('\n').split(',')[0],i.rstrip('\n').split(',')[1:])  for i in f1.readlines()])
+    outDict = dict([ (i.rstrip('\n').split(',')[0],i.rstrip('\n').split(','))  for i in f1.readlines()])
 
     f1.close()
     f2.close()
