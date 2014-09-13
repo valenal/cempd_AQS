@@ -2,6 +2,7 @@ import os,time,pdb
 import urllib
 import urllib2
 import zipfile
+import copy
 import pandas as pd
 import numpy as np
 import datetime as dt
@@ -41,16 +42,21 @@ units = {"Parts per million":"ppm",
 
 basePath = os.path.dirname(__file__)
 
-def getAdjStatesDict(getCode=True):
-    f1 = open('%s/adjacent_states.txt' % basePath)
+def getAdjStatesDict(getCode='',truelyAdj=False):
+    if truelyAdj:
+        f1 = open('%s/adjacent_states.txt.orig.reallyadj' % basePath)
+    else:
+        f1 = open('%s/adjacent_states.txt' % basePath)
     f2 = open('%s/statesCodeAbbName.txt' % basePath)
     
     #get State Code
-    if getCode:
-        iCode = 1
+    if getCode == 'Name':
+        iCode = 2
     #get State Name
+    elif getCode == 'Abb':
+        iCode = 0
     else:
-        iCode = 2 
+        iCode = 1
         
     #create dict that map abbreviations to State code or name
     abbDict = dict([ (i.rstrip('\n').split(',')[0],i.rstrip('\n').split(',')[iCode])  for i in f2.readlines()])    
@@ -144,22 +150,22 @@ class AQSdat:
             cond  = self.df['State Name'].str.contains('|'.join([i.capitalize() for i in states]))
         else:
             cond  = np.in1d(self.df['State Code'],np.array(states))
-        self.df = self.df.drop(self.df[~cond].index.values)
-
-    def getUnqPolls(self):
-        return self.df.loc[:,['Parameter Name','Parameter Code']].drop_duplicates().values 
+        self_keepStates = copy.copy(self)
+        self_keepStates.df = self_keepStates.df.drop(self_keepStates.df[~cond].index.values)
+        return self_keepStates
 
     def getPoll(self,paramCode,toUgm3=False,toPpm=False,toPpb=False):
-        outDF = self.df[self.df['Parameter Code'] == int(paramCode)]
+        self_getPoll = copy.copy(self)
+        outDF = self_getPoll.df[self_getPoll.df['Parameter Code'] == int(paramCode)]
         
         try:
             fPoll = AQSpollsDict[paramCode]
         except KeyError as (strerror):
             raise KeyError("Cannot process AQS param code {0}".format(strerror))
 
-        if self.timeAve == 'daily':
+        if self_getPoll.timeAve == 'daily':
             datCol = 'Arithmetic Mean'
-        elif self.timeAve == 'hourly':
+        elif self_getPoll.timeAve == 'hourly':
             datCol = 'Sample Measurement'
         
         ###################################################
@@ -270,12 +276,19 @@ class AQSdat:
         
         if outDF.shape[0] == 0:
             print "Warning: Empty DataFrame for %s" % fPoll['name']
-        return outDF
+        
+        self_getPoll.df  = outDF
+        return self_getPoll
 
-def getUnqSites(inDF):
-    return inDF['site_id'].drop_duplicates().values 
+    def getUnqPolls(self):
+        return self.df.loc[:,['Parameter Name','Parameter Code']].drop_duplicates().values 
 
-def writeEXT(inDF,spc,tmean,outF):
+    def getUnqSites(self):
+        return self.df['site_id'].drop_duplicates().values 
+
+#get class AQSdat makes csv EXT format
+def writeEXT(inAQSdat,spc,tmean,outF):
+    inDF = inAQSdat.df
     if tmean == 'daily':
         inDF['dateon'] = pd.to_datetime(inDF['Date Local'])
         inDF=inDF.rename(columns = {'Arithmetic Mean':spc})        
@@ -286,7 +299,9 @@ def writeEXT(inDF,spc,tmean,outF):
     print "Creating %s File" % outF
     inDF.loc[:,['site_id','dateon','dateoff',spc]].to_csv(outF,index=False)
 
-def writeSTOK(inDF,spc,tmean,outF):
+#get class AQSdat makes csv STOK format
+def writeSTOK(inAQSdat,spc,tmean,outF):
+    inDF = inAQSdat.df
     if tmean == 'daily':
         inDF['dt.date'] = pd.to_datetime(inDF['Date Local'])
         inDF=inDF.rename(columns = {'Arithmetic Mean':spc})  
@@ -334,7 +349,7 @@ if __name__ == "__main__":
 
                 for pollCode in pollGroups[polls].keys():
                     pollName = pollGroups[polls][pollCode]
-                    nex.keepStates(states,'Code')
-                    spc = nex.getPoll(pollCode,toUgm3=True)
+                    nexSts = nex.keepStates(states,'Code')
+                    spc = nexSts.getPoll(pollCode,toUgm3=True)
                     writeSTOK(spc,pollName,tmean,'./%s_%s.csv' % (pollName,year))
 ####################################################################################
