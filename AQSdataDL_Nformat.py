@@ -142,6 +142,7 @@ class AQSdat:
         self.year = yr 
         self.timeAve = tave 
         self.df = pd.read_csv(inPath)
+        self.units = 'set units'
         self.df['site_id'] = ['%02i%03i%04i' % (i[0],i[1],i[2]) for i in self.df.loc[:,['State Code','County Code','Site Num']].values]
             
     def keepStates(self,states,stateType='name'):
@@ -154,10 +155,11 @@ class AQSdat:
         self_keepStates.df = self_keepStates.df.drop(self_keepStates.df[~cond].index.values)
         return self_keepStates
 
-    def getPoll(self,paramCode,toUgm3=False,toPpm=False,toPpb=False):
+    def getPoll(self,paramCode,spcName,toUgm3=False,toPpm=False,toPpb=False):
         self_getPoll = copy.copy(self)
+        self_getPoll.pollutant = spcName
         outDF = self_getPoll.df[self_getPoll.df['Parameter Code'] == int(paramCode)]
-        
+    
         try:
             fPoll = AQSpollsDict[paramCode]
         except KeyError as (strerror):
@@ -278,6 +280,7 @@ class AQSdat:
             print "Warning: Empty DataFrame for %s" % fPoll['name']
         
         self_getPoll.df  = outDF
+        self_getPoll.units = fUnits
         return self_getPoll
 
     def getUnqPolls(self):
@@ -286,47 +289,92 @@ class AQSdat:
     def getUnqSites(self):
         return self.df['site_id'].drop_duplicates().values 
 
-#get class AQSdat makes csv EXT format
-def writeEXT(inAQSdat,spc,tmean,outF):
-    inDF = inAQSdat.df
-    if tmean == 'daily':
-        inDF['dateon'] = pd.to_datetime(inDF['Date Local'])
-        inDF=inDF.rename(columns = {'Arithmetic Mean':spc})        
-    elif tmean == 'hourly':
-        inDF['dateon'] = pd.to_datetime(inDF['Date Local']+' '+ inDF['Time Local'])
-        inDF=inDF.rename(columns = {'Sample Measurement':spc})        
-    inDF['dateoff'] =(inDF['dateon'] + dt.timedelta(hours=23,minutes=59))
-    print "Creating %s File" % outF
-    inDF.loc[:,['site_id','dateon','dateoff',spc]].to_csv(outF,index=False)
+    #get class AQSdat makes csv EXT format
+    def writeEXT(self,outF=''):
+        inDF = self.df
 
-#get class AQSdat makes csv STOK format
-def writeSTOK(inAQSdat,spc,tmean,outF):
-    inDF = inAQSdat.df
-    if tmean == 'daily':
-        inDF['dt.date'] = pd.to_datetime(inDF['Date Local'])
-        inDF=inDF.rename(columns = {'Arithmetic Mean':spc})  
-    elif tmean == 'hourly':
-        inDF['dt.date'] = pd.to_datetime(inDF['Date Local']+' '+ inDF['Time Local'])
-        inDF=inDF.rename(columns = {'Sample Measurement':spc})          
+        if outF == '':
+            outF = './%s_%s.csv' % (self.pollutant,self.year)
 
-    inDF['year']   = inDF['dt.date'].map(lambda x: x.year)
-    inDF['month']   = inDF['dt.date'].map(lambda x: x.month)
-    inDF['day']   = inDF['dt.date'].map(lambda x: x.day)
-    inDF['hour']   = inDF['dt.date'].map(lambda x: x.hour)
+        if self.timeAve == 'daily':
+            inDF['dateon'] = pd.to_datetime(inDF['Date Local'])
+            inDF=inDF.rename(columns = {'Arithmetic Mean':self.pollutant})        
+        elif self.timeAve == 'hourly':
+            inDF['dateon'] = pd.to_datetime(inDF['Date Local']+' '+ inDF['Time Local'])
+            inDF=inDF.rename(columns = {'Sample Measurement':self.pollutant})        
+        inDF['dateoff'] =(inDF['dateon'] + dt.timedelta(hours=23,minutes=59))
+        print "Creating %s File" % outF
 
-    # remove POC duplicates
-    inDF = inDF.groupby(['site_id','Longitude','Latitude','year','month','day','hour'],as_index=False).mean()
-    #remove SAME ID slighlty different coordinate problem
-    unq_sites = inDF.loc[:,['site_id','Longitude','Latitude']].drop_duplicates()
-    dupli_sites = unq_sites[unq_sites.duplicated('site_id')]
+        # remove POC duplicates
+        inDF = inDF.groupby(['site_id','dateon','dateoff'],as_index=False).mean()
 
-    if dupli_sites.shape[0] != 0:
-        for dupli_site in dupli_sites.values():
-            inDF[inDF['site_id']== dupli_site_id[0]]['Longitude'] == dupli_site_id[1] 
-            inDF[inDF['site_id']== dupli_site_id[0]]['Latitude']  == dupli_site_id[2] 
+        inDF.loc[:,['site_id','dateon','dateoff',self.pollutant]].to_csv(outF,index=False)
+    
+    #get class AQSdat makes csv AMET2 READY format
+    def writeAMETRDY(self,outF='',createLocsFile=False):
+        inDF = self.df
+        if outF == '':
+            outF = './%s_%s_vals.csv' % (self.pollutant,self.year)
+        if createLocsFile:
+            locsF = './%s_%s_locs.csv' % (self.pollutant,self.year)
 
-    print "Creating %s File" % outF
-    inDF.loc[:,['site_id','Longitude','Latitude','year','month','day','hour',spc]].to_csv(outF,index=False,header=False)
+        if self.timeAve == 'daily':
+            inDF['dateon'] = pd.to_datetime(inDF['Date Local'])
+            inDF=inDF.rename(columns = {'Arithmetic Mean':self.pollutant})        
+        elif self.timeAve == 'hourly':
+            inDF['dateon'] = pd.to_datetime(inDF['Date Local']+' '+ inDF['Time Local'])
+            inDF=inDF.rename(columns = {'Sample Measurement':self.pollutant})        
+        inDF['dateoff'] =(inDF['dateon'] + dt.timedelta(hours=23,minutes=59))
+        
+        inDF['dateon']  = inDF['dateon'].apply(lambda x: x.strftime('%m/%d/%Y %H:%M'))
+        inDF['dateoff'] = inDF['dateoff'].apply(lambda x: x.strftime('%m/%d/%Y %H:%M'))
+        inDF['poll'] = self.pollutant
+        inDF['units'] = self.units
+        inDF['QA'] = 'NA'
+
+        if createLocsFile:
+            locsF = './%s_%s_locs.csv' % (self.pollutant,self.year)                
+            print "Creating %s File" % locsF
+            locsDF =  inDF.loc[:,['site_id','Longitude','Latitude']].drop_duplicates()
+            locsDF.to_csv(locsF,index=False,header=False)
+        
+        print "Creating %s File" % outF
+        # remove POC duplicates
+        inDF = inDF.groupby(['Longitude','Latitude','dateon','dateoff','poll','units','QA'],as_index=False).mean()
+        inDF.loc[:,['Longitude','Latitude','dateon','dateoff','poll','units',self.pollutant,'QA']].to_csv(outF,index=False,header=False)
+
+
+    #get class AQSdat makes csv STOK format
+    def writeSTOK(self,outF=''):
+        inDF = self.df
+        if outF == '':
+            outF = './%s_%s.csv' % (self.pollutant,self.year)
+
+        if self.timeAve == 'daily':
+            inDF['dt.date'] = pd.to_datetime(inDF['Date Local'])
+            inDF=inDF.rename(columns = {'Arithmetic Mean':self.pollutant})  
+        elif self.timeAve == 'hourly':
+            inDF['dt.date'] = pd.to_datetime(inDF['Date Local']+' '+ inDF['Time Local'])
+            inDF=inDF.rename(columns = {'Sample Measurement':self.pollutant})          
+
+        inDF['year']   = inDF['dt.date'].map(lambda x: x.year)
+        inDF['month']   = inDF['dt.date'].map(lambda x: x.month)
+        inDF['day']   = inDF['dt.date'].map(lambda x: x.day)
+        inDF['hour']   = inDF['dt.date'].map(lambda x: x.hour)
+
+        # remove POC duplicates
+        inDF = inDF.groupby(['site_id','Longitude','Latitude','year','month','day','hour'],as_index=False).mean()
+        #remove SAME ID slightly different coordinate problem
+        unq_sites = inDF.loc[:,['site_id','Longitude','Latitude']].drop_duplicates()
+        dupli_sites = unq_sites[unq_sites.duplicated('site_id')]
+        
+        if dupli_sites.shape[0] != 0:
+            for dupli_site_id in dupli_sites.values:
+                inDF[inDF['site_id']== dupli_site_id[0]]['Longitude'] == dupli_site_id[1] 
+                inDF[inDF['site_id']== dupli_site_id[0]]['Latitude']  == dupli_site_id[2] 
+
+        print "Creating %s File" % outF
+        inDF.loc[:,['site_id','Longitude','Latitude','year','month','day','hour',self.pollutant]].to_csv(outF,index=False,header=False)
 
 if __name__ == "__main__":
 
@@ -350,6 +398,6 @@ if __name__ == "__main__":
                 for pollCode in pollGroups[polls].keys():
                     pollName = pollGroups[polls][pollCode]
                     nexSts = nex.keepStates(states,'Code')
-                    spc = nexSts.getPoll(pollCode,toUgm3=True)
-                    writeSTOK(spc,pollName,tmean,'./%s_%s.csv' % (pollName,year))
+                    spc = nexSts.getPoll(pollCode,pollName,toUgm3=True)
+                    spc.writeAMETRDY()
 ####################################################################################
