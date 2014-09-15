@@ -7,6 +7,8 @@ import pandas as pd
 import numpy as np
 import datetime as dt
 from IPython import embed
+import re
+import sys
 
 #######################################################################
 # Conversion factors are ppb -> ug/m3
@@ -35,6 +37,7 @@ AQSpollsDict ={'42101':dict(name="CO", convert=1.14626, nCarbon=0.0),
 '43503':dict(name="ACETALDEHYDE", convert=1.80277, convert0=1.96752, nCarbon=2.0)}
        
 units = {"Parts per million":"ppm",
+"Parts per billion":"ppb",
 "Parts per billion Carbon":"ppbC",
 "Micrograms/cubic meter (LC)":"ug/m3",
 "Micrograms/cubic meter (25 C)":"ug/m3",
@@ -145,13 +148,25 @@ class AQSdat:
         self.units = 'set units'
         self.df['site_id'] = ['%02i%03i%04i' % (i[0],i[1],i[2]) for i in self.df.loc[:,['State Code','County Code','Site Num']].values]
             
-    def keepStates(self,states,stateType='name'):
-        #need to make it check for type of states inserted
-        if stateType == 'Name':
-            cond  = self.df['State Name'].str.contains('|'.join([i.capitalize() for i in states]))
-        else:
-            cond  = np.in1d(self.df['State Code'],np.array(states))
+    def keepStates(self,states,county_state='state'):
         self_keepStates = copy.copy(self)
+        states = map(str,states)
+
+        if county_state.lower() == 'state':
+            fips = 'State Code'
+        elif county_state.lower() == 'county':
+            fips = 'County Code'
+            
+        #need to make it check for type of states inserted or name of state
+        #if   all(re.match(r'^[A-Za-z\s]*$',item) for item in states):
+        #    cond  = self.df['State Name'].str.contains('|'.join([i.capitalize() for i in states]))
+        if all(re.match(r'^[0-9]{1,3}$',item) for item in states):
+            states = map(int, states) 
+            cond  = np.in1d(self.df[fips],np.array(states))
+        else:
+            sys.stderr.write("error: check your states only FIPS codes allowed\n")
+            sys.exit(1)
+
         self_keepStates.df = self_keepStates.df.drop(self_keepStates.df[~cond].index.values)
         return self_keepStates
 
@@ -375,29 +390,3 @@ class AQSdat:
 
         print "Creating %s File" % outF
         inDF.loc[:,['site_id','Longitude','Latitude','year','month','day','hour',self.pollutant]].to_csv(outF,index=False,header=False)
-
-if __name__ == "__main__":
-
-######################## EXAMPLE RUN ##############################
-    if (FALSE):
-        pollGroups = { 'VOCS':{'43505':'ACROLEIN'},
-        'HAPS':{'43218':'13BUTADIENE','45201':'BENZENE','43502':'FORMALDEHYDE','43503':'ACETALDEHYDE'},
-        'SPEC':{'88403':'SO4'}, 'PM25_FRM':{'88101':'PM25_FRM'},'CO':{'42101':'CO'} ,
-        'PM25_nonFRM':{'88502':'PM25_nonFRM'},'NOX':{'42603':'NOX'}}
-
-        states = [37,51,21,47,13,45]
-        years = [2011,2012,2013,2014]
-        tmean = 'hourly'
-
-        for year in years:
-            for polls in pollGroups.keys():
-                outFile = DL_unzip(polls,year,tmean)
-                nex = AQSdat(outFile,polls,year,tmean)
-
-
-                for pollCode in pollGroups[polls].keys():
-                    pollName = pollGroups[polls][pollCode]
-                    nexSts = nex.keepStates(states,'Code')
-                    spc = nexSts.getPoll(pollCode,pollName,toUgm3=True)
-                    spc.writeAMETRDY()
-####################################################################################
