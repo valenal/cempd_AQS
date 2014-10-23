@@ -309,15 +309,16 @@ class AQSdat:
         inDF = self.df
 
         if outF == '':
-            outF = './%s_%s.csv' % (self.pollutant,self.year)
+            outF = './%s_%s_%s.csv' % (self.pollutant,self.year,self.timeAve)
 
         if self.timeAve == 'daily':
             inDF['dateon'] = pd.to_datetime(inDF['Date Local'])
-            inDF=inDF.rename(columns = {'Arithmetic Mean':self.pollutant})        
+            inDF=inDF.rename(columns = {'Arithmetic Mean':self.pollutant})
+            inDF['dateoff'] =(inDF['dateon'] + dt.timedelta(hours=23,minutes=59))
         elif self.timeAve == 'hourly':
             inDF['dateon'] = pd.to_datetime(inDF['Date Local']+' '+ inDF['Time Local'])
             inDF=inDF.rename(columns = {'Sample Measurement':self.pollutant})        
-        inDF['dateoff'] =(inDF['dateon'] + dt.timedelta(hours=23,minutes=59))
+            inDF['dateoff'] =(inDF['dateon'] + dt.timedelta(minutes=59))
         print "Creating %s File" % outF
 
         # remove POC duplicates
@@ -329,17 +330,18 @@ class AQSdat:
     def writeAMETRDY(self,outF='',createLocsFile=False):
         inDF = self.df
         if outF == '':
-            outF = './%s_%s_vals.csv' % (self.pollutant,self.year)
+            outF = './%s_%s_%s_vals.csv' % (self.pollutant,self.year,self.timeAve)
         if createLocsFile:
             locsF = './%s_%s_locs.csv' % (self.pollutant,self.year)
 
         if self.timeAve == 'daily':
             inDF['dateon'] = pd.to_datetime(inDF['Date Local'])
-            inDF=inDF.rename(columns = {'Arithmetic Mean':self.pollutant})        
+            inDF=inDF.rename(columns = {'Arithmetic Mean':self.pollutant})
+            inDF['dateoff'] =(inDF['dateon'] + dt.timedelta(hours=23,minutes=59))
         elif self.timeAve == 'hourly':
             inDF['dateon'] = pd.to_datetime(inDF['Date Local']+' '+ inDF['Time Local'])
             inDF=inDF.rename(columns = {'Sample Measurement':self.pollutant})        
-        inDF['dateoff'] =(inDF['dateon'] + dt.timedelta(hours=23,minutes=59))
+        inDF['dateoff'] =(inDF['dateon'] + dt.timedelta(minutes=59))
         
         inDF['dateon']  = inDF['dateon'].apply(lambda x: x.strftime('%m/%d/%Y %H:%M'))
         inDF['dateoff'] = inDF['dateoff'].apply(lambda x: x.strftime('%m/%d/%Y %H:%M'))
