@@ -1,6 +1,6 @@
 import os,time,pdb
-import urllib
 import urllib2
+import urllib
 import zipfile
 import copy
 import pandas as pd
@@ -9,6 +9,7 @@ import datetime as dt
 from IPython import embed
 import re
 import sys
+import subprocess
 
 #######################################################################
 # Conversion factors are ppb -> ug/m3
@@ -74,6 +75,24 @@ def getAdjStatesDict(getCode='',truelyAdj=False):
               
     return outDict
 
+def getMonitorObjectiveDat(url,ptrn='.txt'):
+    hackF = './AQSFiles/RD_SITEMON_4_2014-0.txt'
+    if not os.path.isfile(hackF):
+        dlF,headers = urllib.urlretrieve(url)
+        zf = zipfile.ZipFile(dlF)
+        outFile = [name for name in zf.namelist() if name.endswith(ptrn)][0]
+        
+        fd = open(outFile, 'w')
+        fd.write(zf.read(outFile))
+        fd.close()
+        
+        subprocess.call('grep -e "^ME|" -e "^# ME|" %s > tmp.tmp'% outFile  , shell=True)
+        os.rename('tmp.tmp','./AQSFiles/%s' % outFile)
+        os.remove(outFile)
+    
+        return './AQSFiles/%s' % outFile
+    else:
+        return hackF
 
 def unzip(inPath,tave,spc,code,yr,outPath):
     zfile = zipfile.ZipFile(inPath)
@@ -147,7 +166,8 @@ class AQSdat:
         self.df = pd.read_csv(inPath)
         self.units = 'set units'
         self.df['site_id'] = ['%02i%03i%04i' % (i[0],i[1],i[2]) for i in self.df.loc[:,['State Code','County Code','Site Num']].values]
-            
+        self.paramCode = None
+
     def keepStates(self,states,county_state='state'):
         self_keepStates = copy.copy(self)
         states = map(str,states)
@@ -171,10 +191,11 @@ class AQSdat:
         return self_keepStates
 
     def getPoll(self,paramCode,spcName,toUgm3=False,toPpm=False,toPpb=False):
+        self.pollutant = spcName
+        self.paramCode = paramCode
         self_getPoll = copy.copy(self)
-        self_getPoll.pollutant = spcName
         outDF = self_getPoll.df[self_getPoll.df['Parameter Code'] == int(paramCode)]
-    
+
         try:
             fPoll = AQSpollsDict[paramCode]
         except KeyError as (strerror):
@@ -265,7 +286,6 @@ class AQSdat:
             b = fUnitsAll == "ppm"
             concAll[b] = concAll[b] * 1000.
 
-
             # convert pptm units
             b = fUnitsAll == "pptm"
             concAll[b] = concAll[b] * 100.
@@ -304,8 +324,23 @@ class AQSdat:
     def getUnqSites(self):
         return self.df['site_id'].drop_duplicates().values 
 
+    def getMonObj(self,monObjURL='http://www.epa.gov/ttn/airs/airsaqs/detaildata/501files/RD_SITEMON_4_2014.zip'):
+        inDat = getMonitorObjectiveDat(monObjURL)
+        datM  = datM  = pd.read_csv(inDat,sep='|',usecols=[2,3,4,5,6,7],dtype=str)
+        datM['site_id'] = ['%s%s%s' % (i[0],i[1],i[2]) for i in datM.loc[:,['State Code','County Code','Site ID']].values]
+        
+        if self.paramCode == None:
+            print "Error: Set paramCode" 
+            sys.exit()
+        else:
+            datM = datM[datM.Parameter == self.paramCode].loc[:,['Monitor Objective','site_id','POC']]
+            datM.POC = datM.POC.astype('int64')
+            datM.drop_duplicates(cols=['site_id','POC'],inplace=True)
+
+        self.df = pd.merge(self.df,datM,on=['site_id','POC'],how='left')
+
     #get class AQSdat makes csv EXT format
-    def writeEXT(self,outF=''):
+    def writeEXT(self,outF='',MonObj=False):
         inDF = self.df
 
         if outF == '':
@@ -321,11 +356,15 @@ class AQSdat:
             inDF['dateoff'] =(inDF['dateon'] + dt.timedelta(minutes=59))
         print "Creating %s File" % outF
 
-        # remove POC duplicates
-        inDF = inDF.groupby(['site_id','dateon','dateoff'],as_index=False).mean()
+        extCols = ['site_id','dateon','dateoff']
 
-        inDF.loc[:,['site_id','dateon','dateoff',self.pollutant]].to_csv(outF,index=False)
-    
+        if (MonObj == True):
+            extCols.append('Monitor Objective')
+
+        # remove POC duplicates
+        inDF = inDF.groupby(extCols,as_index=False).mean()
+        inDF.loc[:,extCols+[self.pollutant]].to_csv(outF,index=False)
+        
     #get class AQSdat makes csv AMET2 READY format
     def writeAMETRDY(self,outF='',createLocsFile=False):
         inDF = self.df
