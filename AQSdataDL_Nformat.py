@@ -356,10 +356,11 @@ class AQSdat:
             inDF['dateoff'] =(inDF['dateon'] + dt.timedelta(minutes=59))
         print "Creating %s File" % outF
 
-        extCols = ['site_id','dateon','dateoff']
-
         if (MonObj == True):
-            extCols.append('Monitor Objective')
+            extCols = ['site_id',"Longitude","Latitude",'dateon','Monitor Objective']
+        else:
+            extCols = ['site_id','dateon','dateoff']
+
 
         # remove POC duplicates
         inDF = inDF.groupby(extCols,as_index=False).mean()
