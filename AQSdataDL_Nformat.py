@@ -340,7 +340,7 @@ class AQSdat:
         self.df = pd.merge(self.df,datM,on=['site_id','POC'],how='left')
 
     #get class AQSdat makes csv EXT format
-    def writeEXT(self,outF='',MonObj=False):
+    def writeEXT(self,outF='',MonObj=False,customOut=False):
         inDF = self.df
 
         if outF == '':
@@ -358,6 +358,8 @@ class AQSdat:
 
         if (MonObj == True):
             extCols = ['site_id',"Longitude","Latitude",'dateon','Monitor Objective']
+        elif (customOut == True):
+            extCols = ['site_id',"Longitude","Latitude",'dateon','POC']
         else:
             extCols = ['site_id','dateon','dateoff']
 
