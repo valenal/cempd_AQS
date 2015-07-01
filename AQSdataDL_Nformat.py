@@ -108,7 +108,10 @@ def unzip(inPath,tave,spc,code,yr,outPath):
         else:
             # file
             fd = open(name, 'w')
-            fd.write(zfile.read(name))
+            try:
+                fd.write(zfile.read(name))
+            except SystemError:
+                subprocess.call('unzip -o {0}'.format(inPath),shell=True)
             fd.close()
             os.rename(name,outPath)
     zfile.close()
