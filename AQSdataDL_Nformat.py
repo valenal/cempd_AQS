@@ -131,7 +131,7 @@ def DL_unzip(spc,yr,tave):
     'SPEC':['SPEC'],
     'HAPS':['HAPS'],
     'LEAD':['LEAD'],
-    'NONOxNOy':['NONOxNOy']}
+    'NONOXNOY':['NONOxNOy']}
 
     if spc.upper() == 'ALL':
         spcs = spcCode.keys()
